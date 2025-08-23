@@ -43,16 +43,24 @@ responses streams, add text and logo overlays, and manage overlay positioning wi
 
 
 ### Frontend  
-- **React 17** - Component-bUIvelopmentvelopmented UI (via CDN)
+- **React 17** - Component-development implemented  UI (via CDN)
 - **Bootstrap 5** - Responsivframeworkework
 - **Feather Icons** - Consistent iconography
 - **Axios** - HTTP client for API communication
 - **Video.js** - Video play with HLS support
+- **FFmpeg**: Command-line video processing for RTSP to HLS conversion
+- **FFprobe**: Video stream analysis and validation tool
 
 ### Development
 - **Flask Development Server** - Hot reload for development
 - **SQLAlchemy** - Database ORM and migrations
+- **Feather Icons**: Icon library for consistent UI elements
 - **Babel Standalone** - JSX transformation in browser
+
+## Third-party Integrations
+- **RTSP Sources**: Integration with IP cameras, streaming servers, and video encoders
+- **CDN Resources**: External CDN dependencies for React, Bootstrap, and other frontend libraries
+- **Stream Validation**: External RTSP stream accessibility checking via FFprobe
 
 ## 📋 Prerequisites
 
@@ -366,12 +374,11 @@ For support, questions, or feature requests:
 ## 🎯 Future Enhancements
 
 Potential improvements and features:
-- **Real RTSP streaming**: Implement FFmpeg-based RTSP-to-HLS conversion
+
 - **User authentication**: Multi-user support with login system
 - **Advanced overlays**: Animation, timers, and dynamic content
 - **Stream recording**: Save and replay stream segments
 - **Mobile app**: Native mobile application
-- **Real-time collaboration**: Multiple users managing overlays simultaneously
 - **Analytics**: Stream viewership and overlay engagement metrics
 
 ---
