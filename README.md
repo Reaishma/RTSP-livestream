@@ -1,6 +1,8 @@
 # RTSP Livestream with Overlays
 
-A full-stack web application for streaming RTSP video feeds with custom overlay functionality. Built with React frontend and Flask backend using PostgreSQL database.
+## Overview 
+This is a full-stack RTSP livestream application that enables users to stream RTSP video feeds with custom overlay functionality. The application allows users to responses
+responses streams, add text and logo overlays, and manage overlay positioning with drag-and-drop functionality. It's designed for scenarios like IP camera monitoring, live streaming with branding, or video surveillance with information overlays.
 
 ## 🚀 Features
 
@@ -20,13 +22,32 @@ A full-stack web application for streaming RTSP video feeds with custom overlay 
 - **PostgreSQL** - Database with SQLAlchemy ORM
 - **Flask-CORS** - Cross-origin request support
 - **RESTful APIs** - Standard HTTP methods and JSON responses
+- **Routing Structure**: Separate blueprints for overlay and stream management
+- **Video Processing**: FFmpeg integration for RTSP to HLS conversion (production-ready streaming)
+## Data Models
+- **Overlay Model**: Comprehensive overlay configuration with positioning, styling, and content properties
+- **StreamSettings Model**: RTSP stream configuration and metadata storage
+- **Database Schema**: PostgreSQL with SQLAlchemy migrations for schema management
+
+## Video Streaming Architecture
+- **RTSP Handling**: Custom RTSPHandler class for stream validation and conversion
+- **Stream Conversion**: FFmpeg-based RTSP to HLS conversion for web browser compatibility
+- **Real-time Updates**: Live overlay rendering on top of video streams
+- **Validation Layer**: RTSP URL validation before stream initialization
+
+## API Structure
+- **Standardized Responses**: Consistent JSON response format with success/error states
+- **Error Handling**: SQLAlchemy exception handling with appropriate HTTP status codes
+- **CRUD Operations**: Full create, read, update, delete operations for overlays and streams
+- **Input Validation**: Server-side validation for RTSP URLs and overlay configurations
+
 
 ### Frontend  
-- **React 17** - Component-based UI (via CDN)
-- **Bootstrap 5** - Responsive UI framework
+- **React 17** - Component-bUIvelopmentvelopmented UI (via CDN)
+- **Bootstrap 5** - Responsivframeworkework
 - **Feather Icons** - Consistent iconography
 - **Axios** - HTTP client for API communication
-- **Video.js** - Video player with HLS support
+- **Video.js** - Video play with HLS support
 
 ### Development
 - **Flask Development Server** - Hot reload for development
