@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTSP Livestream with Overlays</title>
+    
+    <!-- External CSS Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.css" rel="stylesheet">
+    <link href="https://vjs.zencdn.net/7.18.1/video-js.css" rel="stylesheet">
+    
+    <!-- Embedded CSS Styles -->
+    <style>
+        /* Main application styles */
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* Video container styles */
+        .video-container {
+            background-color: #000;
+            min-height: 400px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            z-index: 1;
+        }
+
+        .video-placeholder .alert {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+        }
+
+        /* Video controls */
+        .video-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 16px;
+            border-radius: 6px;
+            z-index: 5;
+        }
+
+        .volume-control {
+            color: white;
+        }
+
+        .volume-control .form-range {
+            width: 100px;
+        }
+
+        /* Overlay container */
+        .overlay-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Overlay elements */
+        .overlay-element {
+            pointer-events: all;
+            border: 2px dashed transparent;
+            transition: border-color 0.2s ease;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            word-break: break-word;
+            cursor: move;
+        }
+
+        .overlay-element:hover {
+            border-color: #007bff !important;
+        }
+
+        .overlay-element.dragging {
+            border-color: #0056b3 !important;
+            box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+        }
+
+        /* Resize handle */
+        .resize-handle {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            width: 12px;
+            height: 12px;
+            background: #007bff;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: nw-resize;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .overlay-element:hover .resize-handle {
+            opacity: 1;
+        }
+
+        /* Overlay panel styles */
+        .overlay-panel {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .overlay-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .overlay-item {
+            transition: all 0.2s ease;
+        }
+
+        .overlay-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Form styles */
+        .overlay-form {
+            border: 2px solid #e9ecef;
+            transition: border-color 0.2s ease;
+        }
+
+        .overlay-form:focus-within {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        /* Button styles */
+        .btn {
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Card styles */
+        .card {
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+        }
+
+        /* Alert styles */
+        .alert {
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        /* Loading spinner */
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        /* Error handling styles */
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .success-message {
+            color: #198754;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .video-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .volume-control {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .overlay-panel {
+                margin-top: 20px;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #000;
+                color: #f8f9fa;
+            }
+            
+            .card {
+                background-color: #212529;
+                border-color: #495057;
+            }
+            
+            .card-header {
+                background-color: #343a40;
+                border-bottom-color: #495057;
+            }
+        }
+
+        /* Accessibility improvements */
+        .btn:focus,
+        .form-control:focus,
+        .form-select:focus,
+        .form-range:focus {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        /* Animation for overlay creation */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .overlay-form {
+            animation: slideIn 0.3s ease;
+        }
+
+        /* Smooth transitions for overlay list items */
+        .overlay-item {
+            transition: all 0.2s ease;
+        }
+
+        .overlay-item:not(:last-child) {
+            margin-bottom: 8px;
+        }
+
+        /* Custom scrollbar for overlay list */
+        .overlay-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .overlay-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .overlay-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        .overlay-list::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <!-- External JavaScript Libraries -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js"></script>
+    
+    <!-- Embedded React Application -->
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // Mock API service for overlays with proper error handling
+        const overlayAPI = {
+            getAll: () => {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const storedOverlays = localStorage.getItem('rtsp_overlays');
+                        const overlays = storedOverlays ? JSON.parse(storedOverlays) : [];
+                        resolve({ data: overlays });
+                    } catch (error) {
+                        reject(new Error('Failed to load overlays from storage'));
+                    }
+                });
+            },
+            
+            get: (id) => {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const storedOverlays = localStorage.getItem('rtsp_overlays');
+                        const overlays = storedOverlays ? JSON.parse(storedOverlays) : [];
+                        const overlay = overlays.find(o => o.id === id);
+                        resolve({ data: overlay || null });
+                    } catch (error) {
+                        reject(new Error('Failed to get overlay'));
+                    }
+                });
+            },
+            
+            create: (data) => {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const newOverlay = {
+                            ...data,
+                            id: Date.now() + Math.random(),
+                            created_at: new Date().toISOString(),
+                            x_position: data.position?.x || 10,
+                            y_position: data.position?.y || 10,
+                            width: data.size?.width || 200,
+                            height: data.size?.height || 50,
+                            is_active: data.is_active !== undefined ? data.is_active : true
+                        };
+                        
+                        const storedOverlays = localStorage.getItem('rtsp_overlays');
+                        const overlays = storedOverlays ? JSON.parse(storedOverlays) : [];
+                        overlays.push(newOverlay);
+                        localStorage.setItem('rtsp_overlays', JSON.stringify(overlays));
+                        
+                        resolve({ data: newOverlay });
+                    } catch (error) {
+                        reject(new Error('Failed to create overlay'));
+                    }
+                });
+            },
+            
+            update: (id, data) => {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const storedOverlays = localStorage.getItem('rtsp_overlays');
+                        const overlays = storedOverlays ? JSON.parse(storedOverlays) : [];
+                        const index = overlays.findIndex(o => o.id === id);
+                        
+                        if (index === -1) {
+                            reject(new Error('Overlay not found'));
+                            return;
+                        }
+                        
+                        overlays[index] = {
+                            ...overlays[index],
+                            ...data,
+                            updated_at: new Date().toISOString()
+                        };
+                        
+                        localStorage.setItem('rtsp_overlays', JSON.stringify(overlays));
+                        resolve({ data: overlays[index] });
+                    } catch (error) {
+                        reject(new Error('Failed to update overlay'));
+                    }
+                });
+            },
+            
+            delete: (id) => {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const storedOverlays = localStorage.getItem('rtsp_overlays');
+                        const overlays = storedOverlays ? JSON.parse(storedOverlays) : [];
+                        const filteredOverlays = overlays.filter(o => o.id !== id);
+                        
+                        localStorage.setItem('rtsp_overlays', JSON.stringify(filteredOverlays));
+                        resolve({ data: { success: true } });
+                    } catch (error) {
+                        reject(new Error('Failed to delete overlay'));
+                    }
+                });
+            }
+        };
+
+        // Mock API service for streams with proper validation
+        const streamAPI = {
+            getAll: () => {
+                return new Promise((resolve) => {
+                    try {
+                        const storedStreams = localStorage.getItem('rtsp_streams');
+                        const streams = storedStreams ? JSON.parse(storedStreams) : [];
+                        resolve({ data: streams });
+                    } catch (error) {
+                        resolve({ data: [] });
+                    }
+                });
+            },
+            
+            create: (data) => {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const newStream = {
+                            ...data,
+                            id: Date.now(),
+                            created_at: new Date().toISOString()
+                        };
+                        
+                        const storedStreams = localStorage.getItem('rtsp_streams');
+                        const streams = storedStreams ? JSON.parse(storedStreams) : [];
+                        
+                        // Deactivate other streams if this one is active
+                        if (newStream.is_active) {
+                            streams.forEach(stream => stream.is_active = false);
+                        }
+                        
+                        streams.push(newStream);
+                        localStorage.setItem('rtsp_streams', JSON.stringify(streams));
+                        
+                        resolve({ data: newStream });
+                    } catch (error) {
+                        reject(new Error('Failed to create stream'));
+                    }
+                });
+            },
+            
+            validate: (url) => {
+                return new Promise((resolve) => {
+                    // Basic RTSP URL validation
+                    const isValid = url && (url.startsWith('rtsp://') || url.startsWith('http://') || url.startsWith('https://'));
+                    resolve({ 
+                        data: { 
+                            is_valid: isValid,
+                            valid: isValid,
+                            message: isValid ? 'URL is valid' : 'Invalid URL format. Please use rtsp://, http://, or https://' 
+                        } 
+                    });
+                });
+            }
+        };
+
+        // Draggable Overlay Element Component
+        const OverlayElement = ({ overlay, onUpdate, containerRef }) => {
+            const [isDragging, setIsDragging] = useState(false);
+            const [isResizing, setIsResizing] = useState(false);
+            const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+            const elementRef = useRef(null);
+
+            const handleMouseDown = useCallback((e) => {
+                if (!containerRef.current || !elementRef.current) return;
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (e.target.classList.contains('resize-handle')) {
+                    setIsResizing(true);
+                } else {
+                    setIsDragging(true);
+                    const containerRect = containerRef.current.getBoundingClientRect();
+                    const elementRect = elementRef.current.getBoundingClientRect();
+                    
+                    setDragStart({
+                        x: e.clientX - elementRect.left + containerRect.left,
+                        y: e.clientY - elementRect.top + containerRect.top
+                    });
+                }
+            }, [containerRef]);
+
+            const handleMouseMove = useCallback((e) => {
+                if (!containerRef.current || !elementRef.current) return;
+                
+                const containerRect = containerRef.current.getBoundingClientRect();
+                
+                if (isDragging) {
+                    const newX = e.clientX - containerRect.left - dragStart.x;
+                    const newY = e.clientY - containerRect.top - dragStart.y;
+                    
+                    const maxX = containerRect.width - overlay.width;
+                    const maxY = containerRect.height - overlay.height;
+                    
+                    const clampedX = Math.max(0, Math.min(newX, maxX));
+                    const clampedY = Math.max(0, Math.min(newY, maxY));
+                    
+                    onUpdate(overlay.id, {
+                        ...overlay,
+                        x_position: clampedX,
+                        y_position: clampedY
+                    });
+                } else if (isResizing) {
+                    const newWidth = e.clientX - containerRect.left - overlay.x_position;
+                    const newHeight = e.clientY - containerRect.top - overlay.y_position;
+                    
+                    const maxWidth = containerRect.width - overlay.x_position;
+                    const maxHeight = containerRect.height - overlay.y_position;
+                    
+                    const clampedWidth = Math.max(50, Math.min(newWidth, maxWidth));
+                    const clampedHeight = Math.max(30, Math.min(newHeight, maxHeight));
+                    
+                    onUpdate(overlay.id, {
+                        ...overlay,
+                        width: clampedWidth,
+                        height: clampedHeight
+                    });
+                }
+            }, [isDragging, isResizing, dragStart, overlay, onUpdate, containerRef]);
+
+            const handleMouseUp = useCallback(() => {
+                setIsDragging(false);
+                setIsResizing(false);
+            }, []);
+
+            useEffect(() => {
+                if (isDragging || isResizing) {
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                    document.body.style.userSelect = 'none';
+                    
+                    return () => {
+                        document.removeEventListener('mousemove', handleMouseMove);
+                        document.removeEventListener('mouseup', handleMouseUp);
+                        document.body.style.userSelect = '';
+                    };
+                }
+            }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
+
+            const overlayStyle = {
+                position: 'absolute',
+                left: `${overlay.x_position || 0}px`,
+                top: `${overlay.y_position || 0}px`,
+                width: `${overlay.width || 200}px`,
+                height: `${overlay.height || 50}px`,
+                opacity: overlay.opacity || 1,
+                cursor: isDragging ? 'grabbing' : 'grab',
+                zIndex: overlay.z_index || 100,
+                backgroundColor: overlay.background_color || 'rgba(0, 123, 255, 0.8)',
+                color: overlay.font_color || overlay.text_color || '#ffffff',
+                fontSize: `${overlay.font_size || 16}px`,
+                fontWeight: overlay.font_weight || 'normal',
+                textAlign: overlay.text_align || 'center',
+                padding: '8px',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                wordBreak: 'break-word',
+                border: '2px dashed transparent'
+            };
+
+            return (
+                <div
+                    ref={elementRef}
+                    className={`overlay-element ${isDragging ? 'dragging' : ''}`}
+                    style={overlayStyle}
+                    onMouseDown={handleMouseDown}
+                >
+                    <span>{overlay.content || 'Text Overlay'}</span>
+                    <div className="resize-handle"></div>
+                </div>
+            );
+        };
+
+        // Video Player Component
+        const VideoPlayer = ({ rtspUrl, overlays, onOverlayUpdate }) => {
+            const videoRef = useRef(null);
+            const containerRef = useRef(null);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [volume, setVolume] = useState(1.0);
+
+            useEffect(() => {
+                if (videoRef.current && rtspUrl) {
+                    const video = videoRef.current;
+                    
+                    const handlePlay = () => setIsPlaying(true);
+                    const handlePause = () => setIsPlaying(false);
+                    const handleVolumeChange = () => setVolume(video.volume);
+                    
+                    video.addEventListener('play', handlePlay);
+                    video.addEventListener('pause', handlePause);
+                    video.addEventListener('volumechange', handleVolumeChange);
+                    
+                    return () => {
+                        video.removeEventListener('play', handlePlay);
+                        video.removeEventListener('pause', handlePause);
+                        video.removeEventListener('volumechange', handleVolumeChange);
+                    };
+                }
+            }, [rtspUrl]);
+
+            const togglePlay = () => {
+                const video = videoRef.current;
+                if (video) {
+                    if (isPlaying) {
+                        video.pause();
+                    } else {
+                        video.play();
+                    }
+                }
+            };
+
+            const handleVolumeChange = (e) => {
+                const newVolume = e.target.value;
+                setVolume(newVolume);
+                if (videoRef.current) {
+                    videoRef.current.volume = newVolume;
+                }
+            };
+
+            return (
+                <div className="video-container position-relative" ref={containerRef}>
+                    <div className="video-placeholder">
+                        {rtspUrl ? (
+                            <div className="alert alert-info">
+                                <h5>Stream Active</h5>
+                                <p><strong>URL:</strong> {rtspUrl}</p>
+                            </div>
+                        ) : (
+                            <div className="alert alert-warning">
+                                <h5>No Stream Configured</h5>
+                                <p>Please enter an RTSP URL to configure the livestream.</p>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Video Controls */}
+                    <div className="video-controls">
+                        <button 
+                            className="btn btn-primary btn-sm me-2" 
+                            onClick={togglePlay}
+                            disabled={!rtspUrl}
+                        >
+                            <i data-feather={isPlaying ? 'pause' : 'play'}></i>
+                            {isPlaying ? 'Pause' : 'Play'}
+                        </button>
+                        
+                        <div className="volume-control d-flex align-items-center">
+                            <i data-feather="volume-2" className="me-2"></i>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={volume}
+                                onChange={handleVolumeChange}
+                                className="form-range"
+                                style={{ width: '100px' }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Overlay Container */}
+                    <div className="overlay-container">
+                        {overlays.filter(overlay => overlay.is_active).map(overlay => (
+                            <OverlayElement
+                                key={overlay.id}
+                                overlay={overlay}
+                                onUpdate={onOverlayUpdate}
+                                containerRef={containerRef}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Overlay Management Panel Component
+        const OverlayPanel = ({ overlays, onOverlayCreate, onOverlayUpdate, onOverlayDelete }) => {
+            const [isCreating, setIsCreating] = useState(false);
+            const [editingId, setEditingId] = useState(null);
+            const [formData, setFormData] = useState({
+                name: '',
+                type: 'text',
+                content: '',
+                font_size: 16,
+                font_color: '#FFFFFF',
+                background_color: 'rgba(0, 123, 255, 0.8)',
+                opacity: 1.0
+            });
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    if (editingId) {
+                        await onOverlayUpdate(editingId, formData);
+                        setEditingId(null);
+                    } else {
+                        await onOverlayCreate(formData);
+                        setIsCreating(false);
+                    }
+                    setFormData({
+                        name: '',
+                        type: 'text',
+                        content: '',
+                        font_size: 16,
+                        font_color: '#FFFFFF',
+                        background_color: 'rgba(0, 123, 255, 0.8)',
+                        opacity: 1.0
+                    });
+                } catch (error) {
+                    console.error('Error saving overlay:', error);
+                    alert('Error saving overlay. Please try again.');
+                }
+            };
+
+            const startEditing = (overlay) => {
+                setEditingId(overlay.id);
+                setFormData({
+                    name: overlay.name,
+                    type: overlay.type,
+                    content: overlay.content,
+                    font_size: overlay.font_size,
+                    font_color: overlay.font_color,
+                    background_color: overlay.background_color,
+                    opacity: overlay.opacity
+                });
+                setIsCreating(true);
+            };
+
+            const cancelEditing = () => {
+                setIsCreating(false);
+                setEditingId(null);
+                setFormData({
+                    name: '',
+                    type: 'text',
+                    content: '',
+                    font_size: 16,
+                    font_color: '#FFFFFF',
+                    background_color: 'rgba(0, 123, 255, 0.8)',
+                    opacity: 1.0
+                });
+            };
+
+            return (
+                <div className="overlay-panel">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Overlays</h5>
+                        <button 
+                            className="btn btn-primary btn-sm"
+                            onClick={() => setIsCreating(true)}
+                        >
+                            <i data-feather="plus"></i> Add Overlay
+                        </button>
+                    </div>
+
+                    {/* Overlay List */}
+                    <div className="overlay-list mb-3">
+                        {overlays.length === 0 ? (
+                            <div className="alert alert-info">
+                                <p className="mb-0">No overlays created yet. Click "Add Overlay" to get started.</p>
+                            </div>
+                        ) : (
+                            overlays.map(overlay => (
+                                <div key={overlay.id} className="overlay-item card mb-2">
+                                    <div className="card-body p-2">
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>{overlay.name}</strong>
+                                                <small className="d-block text-muted">
+                                                    {overlay.type} - {overlay.is_active ? 'Active' : 'Inactive'}
+                                                </small>
+                                            </div>
+                                            <div className="btn-group btn-group-sm">
+                                                <button 
+                                                    className="btn btn-outline-primary"
+                                                    onClick={() => startEditing(overlay)}
+                                                >
+                                                    <i data-feather="edit-2"></i>
+                                                </button>
+                                                <button 
+                                                    className="btn btn-outline-success"
+                                                    onClick={() => onOverlayUpdate(overlay.id, { is_active: !overlay.is_active })}
+                                                >
+                                                    <i data-feather={overlay.is_active ? 'eye-off' : 'eye'}></i>
+                                                </button>
+                                                <button 
+                                                    className="btn btn-outline-danger"
+                                                    onClick={() => {
+                                                        if (confirm('Are you sure you want to delete this overlay?')) {
+                                                            onOverlayDelete(overlay.id);
+                                                        }
+                                                    }}
+                                                >
+                                                    <i data-feather="trash-2"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Create/Edit Form */}
+                    {isCreating && (
+                        <div className="overlay-form card">
+                            <div className="card-header">
+                                <h6>{editingId ? 'Edit' : 'Create'} Overlay</h6>
+                            </div>
+                            <div className="card-body">
+                                <form onSubmit={handleSubmit}>
+                                    <div className="mb-3">
+                                        <label className="form-label">Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    
+                                    <div className="mb-3">
+                                        <label className="form-label">Type</label>
+                                        <select
+                                            className="form-select"
+                                            value={formData.type}
+                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                        >
+                                            <option value="text">Text</option>
+                                            <option value="logo">Logo</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div className="mb-3">
+                                        <label className="form-label">
+                                            {formData.type === 'text' ? 'Text Content' : 'Image URL'}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.content}
+                                            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                                            placeholder={formData.type === 'text' ? 'Enter text...' : 'Enter image URL...'}
+                                        />
+                                    </div>
+                                    
+                                    {formData.type === 'text' && (
+                                        <>
+                                            <div className="mb-3">
+                                                <label className="form-label">Font Size</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={formData.font_size}
+                                                    onChange={(e) => setFormData({ ...formData, font_size: parseInt(e.target.value) })}
+                                                    min="8"
+                                                    max="72"
+                                                />
+                                            </div>
+                                            
+                                            <div className="mb-3">
+                                                <label className="form-label">Font Color</label>
+                                                <input
+                                                    type="color"
+                                                    className="form-control"
+                                                    value={formData.font_color}
+                                                    onChange={(e) => setFormData({ ...formData, font_color: e.target.value })}
+                                                />
+                                            </div>
+                                            
+                                            <div className="mb-3">
+                                                <label className="form-label">Background Color</label>
+                                                <input
+                                                    type="color"
+                                                    className="form-control"
+                                                    value={formData.background_color.includes('#') ? formData.background_color : '#007bff'}
+                                                    onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                    
+                                    <div className="mb-3">
+                                        <label className="form-label">Opacity</label>
+                                        <input
+                                            type="range"
+                                            className="form-range"
+                                            min="0"
+                                            max="1"
+                                            step="0.1"
+                                            value={formData.opacity}
+                                            onChange={(e) => setFormData({ ...formData, opacity: parseFloat(e.target.value) })}
+                                        />
+                                        <small className="text-muted">{Math.round(formData.opacity * 100)}%</small>
+                                    </div>
+                                    
+                                    <div className="d-flex gap-2">
+                                        <button type="submit" className="btn btn-primary">
+                                            {editingId ? 'Update' : 'Create'}
+                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={cancelEditing}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Main Application Component
+        const App = () => {
+            const [rtspUrl, setRtspUrl] = useState('');
+            const [overlays, setOverlays] = useState([]);
+            const [currentStreamName, setCurrentStreamName] = useState('');
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+
+            // Load initial data
+            useEffect(() => {
+                loadOverlays();
+                loadStreams();
+            }, []);
+
+            // Update Feather icons when component updates
+            useEffect(() => {
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            });
+
+            const loadOverlays = async () => {
+                try {
+                    const response = await overlayAPI.getAll();
+                    setOverlays(response.data || []);
+                } catch (error) {
+                    console.error('Error loading overlays:', error);
+                    setError('Failed to load overlays');
+                }
+            };
+
+            const loadStreams = async () => {
+                try {
+                    const response = await streamAPI.getAll();
+                    const streams = response.data || [];
+                    if (streams.length > 0) {
+                        const activeStream = streams.find(s => s.is_active) || streams[0];
+                        setRtspUrl(activeStream.rtsp_url);
+                        setCurrentStreamName(activeStream.stream_name);
+                    }
+                } catch (error) {
+                    console.error('Error loading streams:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleRtspSubmit = async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const url = form.rtsp_url.value;
+                const name = form.stream_name.value;
+
+                if (!url || !name) {
+                    alert('Please fill in both RTSP URL and Stream Name');
+                    return;
+                }
+
+                try {
+                    // Validate RTSP URL
+                    const validateResponse = await streamAPI.validate(url);
+                    if (!validateResponse.data.is_valid) {
+                        alert('Invalid RTSP URL format. Please ensure the URL starts with rtsp://');
+                        return;
+                    }
+
+                    // Create new stream setting
+                    await streamAPI.create({
+                        rtsp_url: url,
+                        stream_name: name,
+                        is_active: true
+                    });
+
+                    setRtspUrl(url);
+                    setCurrentStreamName(name);
+                    setError('');
+                    
+                    form.reset();
+                    alert('Stream configuration saved successfully!');
+                } catch (error) {
+                    console.error('Error setting RTSP URL:', error);
+                    setError('Failed to set RTSP URL. Please check the URL and try again.');
+                }
+            };
+
+            const handleOverlayCreate = async (overlayData) => {
+                try {
+                    const response = await overlayAPI.create(overlayData);
+                    setOverlays([...overlays, response.data]);
+                } catch (error) {
+                    console.error('Error creating overlay:', error);
+                    throw error;
+                }
+            };
+
+            const handleOverlayUpdate = async (id, updateData) => {
+                try {
+                    const response = await overlayAPI.update(id, updateData);
+                    setOverlays(overlays.map(overlay => 
+                        overlay.id === id ? response.data : overlay
+                    ));
+                } catch (error) {
+                    console.error('Error updating overlay:', error);
+                    throw error;
+                }
+            };
+
+            const handleOverlayDelete = async (id) => {
+                try {
+                    await overlayAPI.delete(id);
+                    setOverlays(overlays.filter(overlay => overlay.id !== id));
+                } catch (error) {
+                    console.error('Error deleting overlay:', error);
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div className="d-flex justify-content-center align-items-center min-vh-100">
+                        <div className="spinner-border" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container-fluid">
+                    <div className="row">
+                        <div className="col-12">
+                            <header className="py-3 mb-4 border-bottom">
+                                <h1 className="h3">RTSP Livestream with Overlays</h1>
+                                <p className="text-muted">Configure RTSP streams and manage custom overlays</p>
+                            </header>
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="alert alert-danger alert-dismissible" role="alert">
+                            {error}
+                            <button type="button" className="btn-close" aria-label="Close" onClick={() => setError('')}></button>
+                        </div>
+                    )}
+
+                    <div className="row">
+                        <div className="col-lg-8">
+                            {/* RTSP Configuration */}
+                            <div className="card mb-4">
+                                <div className="card-header">
+                                    <h6><i data-feather="settings"></i> Stream Configuration</h6>
+                                </div>
+                                <div className="card-body">
+                                    <form onSubmit={handleRtspSubmit}>
+                                        <div className="row">
+                                            <div className="col-md-6">
+                                                <div className="mb-3">
+                                                    <label htmlFor="stream_name" className="form-label">Stream Name</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        id="stream_name"
+                                                        name="stream_name"
+                                                        placeholder="e.g., Main Camera"
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="col-md-6">
+                                                <div className="mb-3">
+                                                    <label htmlFor="rtsp_url" className="form-label">RTSP URL</label>
+                                                    <input
+                                                        type="url"
+                                                        className="form-control"
+                                                        id="rtsp_url"
+                                                        name="rtsp_url"
+                                                        placeholder="rtsp://example.com:554/stream"
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" className="btn btn-primary">
+                                            <i data-feather="play"></i> Set Stream
+                                        </button>
+                                    </form>
+                                    {currentStreamName && (
+                                        <div className="success-message">
+                                            Current Stream: <strong>{currentStreamName}</strong>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Video Player */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <h6><i data-feather="video"></i> Live Stream</h6>
+                                </div>
+                                <div className="card-body p-0">
+                                    <VideoPlayer 
+                                        rtspUrl={rtspUrl} 
+                                        overlays={overlays}
+                                        onOverlayUpdate={handleOverlayUpdate}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="col-lg-4">
+                            {/* Overlay Management Panel */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <h6><i data-feather="layers"></i> Overlay Management</h6>
+                                </div>
+                                <div className="card-body">
+                                    <OverlayPanel
+                                        overlays={overlays}
+                                        onOverlayCreate={handleOverlayCreate}
+                                        onOverlayUpdate={handleOverlayUpdate}
+                                        onOverlayDelete={handleOverlayDelete}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
