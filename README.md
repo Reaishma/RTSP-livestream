@@ -7,6 +7,8 @@
 This is a full-stack RTSP livestream application that enables users to stream RTSP video feeds with custom overlay functionality. The application allows users to responses
 responses streams, add text and logo overlays, and manage overlay positioning with drag-and-drop functionality. It's designed for scenarios like IP camera monitoring, live streaming with branding, or video surveillance with information overlays.
 
+![RTSP LIVESTREAM](https://github.com/Reaishma/RTSP-livestream/blob/main/Screenshot_20250904-122548_1.jpg)
+
 ## 🚀 Features
 
 - **RTSP Stream Integration**: Configure and manage RTSP video streams
