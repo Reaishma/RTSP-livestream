@@ -9,6 +9,10 @@ responses streams, add text and logo overlays, and manage overlay positioning wi
 
 ![RTSP LIVESTREAM](https://github.com/Reaishma/RTSP-livestream/blob/main/Screenshot_20250904-122548_1.jpg)
 
+## Developer 🧑‍💻 
+
+**Reaishma N**
+
 ## 🚀 Features
 
 - **RTSP Stream Integration**: Configure and manage RTSP video streams
